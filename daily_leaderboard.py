@@ -1,3 +1,4 @@
+import csv
 import requests
 import json
 import time
@@ -14,10 +15,7 @@ SNAPSHOT_DIR = BASE_DIR / "snapshots"
 SNAPSHOT_DIR.mkdir(exist_ok=True)
 
 import os
-DISCORD_WEBHOOK = os.environ.get(
-    "DISCORD_WEBHOOK",
-    "https://discord.com/api/webhooks/1501504638694854716/ghMVvplKswX1fcmpolYhZ5QBOqFOgRik2TUR-wtFwyIcPGqdD2Wh2sj_CKaAl6r9IGIW"
-)
+DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
 
 SERVERS = {
     "KR":  ("kr",   "🇰🇷"),
@@ -71,6 +69,29 @@ def save_snapshot(date: str, server: str, players: list):
     path = SNAPSHOT_DIR / f"{date}_{server}.json"
     with open(path, "w", encoding="utf-8") as f:
         json.dump(players, f, ensure_ascii=False)
+
+
+def save_csv(server: str, players: list):
+    path = BASE_DIR / f"leaderboard_{server.lower()}.csv"
+    rows = [
+        {
+            "rank": idx + 1,
+            "gameName": p.get("gameName"),
+            "tagLine": p.get("tagLine"),
+            "tier": p.get("tier"),
+            "leaguePoints": p.get("leaguePoints"),
+            "plays": p.get("plays"),
+            "wins": p.get("wins"),
+            "tops": p.get("tops"),
+            "winRate": round(p["wins"] / p["plays"] * 100, 1) if p.get("plays") else 0,
+            "top4Rate": round(p["tops"] / p["plays"] * 100, 1) if p.get("plays") else 0,
+        }
+        for idx, p in enumerate(players)
+    ]
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def analyze(today_players: list, yesterday_players: list | None):
@@ -196,6 +217,7 @@ def main():
             print(f"상승 {len(risers)}명 / 신규 진입 {len(newcomers)}명")
 
         save_snapshot(TODAY, server, today_players)
+        save_csv(server, today_players)
 
     if results:
         embeds = build_embeds(results)
