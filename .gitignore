@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+logs/
+leaderboard.csv
+leaderboard_full.json
+api_responses.json
+scrape_leaderboard.py
