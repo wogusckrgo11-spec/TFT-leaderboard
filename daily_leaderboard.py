@@ -188,16 +188,14 @@ def send_discord(embeds: list, has_data: bool):
         requests.post(DISCORD_WEBHOOK, json=payload, timeout=10).raise_for_status()
         return
 
-    # Discord 임베드 최대 10개 제한
-    for i in range(0, len(embeds), 10):
-        chunk = embeds[i:i + 10]
+    # Discord 메시지당 전체 임베드 문자 합계 6000자 제한으로, 서버별 1개씩 개별 전송
+    for embed in embeds:
         payload = {
             "username": "TFT 리더보드 알리미",
-            "embeds": chunk,
+            "embeds": [embed],
         }
         requests.post(DISCORD_WEBHOOK, json=payload, timeout=10).raise_for_status()
-        if i + 10 < len(embeds):
-            time.sleep(1)
+        time.sleep(1)
 
 
 def main():
