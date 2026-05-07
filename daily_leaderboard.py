@@ -29,6 +29,7 @@ API_BASE = "https://tft.dakgg.io/api/v1/leaderboards/summoners/{shard}"
 HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://lolchess.gg/"}
 PARAMS_BASE = {"hl": "ko", "tier": "ALL", "queueId": 1100}
 RISE_THRESHOLD = 50
+LP_RISE_THRESHOLD = 200
 EMBED_COLOR = {"KR": 0xE84057, "JP": 0xFF6B6B, "NA": 0x3B82F6, "EUW": 0x6366F1, "VN": 0xF59E0B}
 
 
@@ -96,13 +97,19 @@ def save_csv(server: str, players: list):
 
 def analyze(today_players: list, yesterday_players: list | None):
     today_rank = {p["puuid"]: idx + 1 for idx, p in enumerate(today_players)}
+    today_by_puuid = {p["puuid"]: p for p in today_players}
     yesterday_rank = (
         {p["puuid"]: idx + 1 for idx, p in enumerate(yesterday_players)}
+        if yesterday_players else {}
+    )
+    yesterday_lp = (
+        {p["puuid"]: p.get("leaguePoints", 0) for p in yesterday_players}
         if yesterday_players else {}
     )
 
     risers = []
     newcomers = []
+    lp_risers = []
 
     for idx, p in enumerate(today_players):
         puuid = p["puuid"]
@@ -119,6 +126,12 @@ def analyze(today_players: list, yesterday_players: list | None):
                     "name": name, "tier": tier, "lp": lp,
                     "yesterday_rank": y_rank, "today_rank": t_rank, "diff": diff,
                 })
+            lp_diff = lp - yesterday_lp[puuid]
+            if lp_diff >= LP_RISE_THRESHOLD:
+                lp_risers.append({
+                    "name": name, "tier": tier, "today_rank": t_rank,
+                    "yesterday_lp": yesterday_lp[puuid], "today_lp": lp, "diff": lp_diff,
+                })
         else:
             newcomers.append({
                 "name": name, "tier": tier, "lp": lp, "today_rank": t_rank,
@@ -126,14 +139,15 @@ def analyze(today_players: list, yesterday_players: list | None):
 
     risers.sort(key=lambda x: x["diff"], reverse=True)
     newcomers.sort(key=lambda x: x["today_rank"])
-    return risers, newcomers
+    lp_risers.sort(key=lambda x: x["diff"], reverse=True)
+    return risers, newcomers, lp_risers
 
 
 def build_embeds(results: dict) -> list:
     embeds = []
     today_str = NOW.strftime("%Y년 %m월 %d일")
 
-    for server, (risers, newcomers) in results.items():
+    for server, (risers, newcomers, lp_risers) in results.items():
         _, emoji = SERVERS[server]
         fields = []
 
@@ -160,6 +174,18 @@ def build_embeds(results: dict) -> list:
                 "inline": False,
             })
 
+        if lp_risers:
+            lines = [
+                f"`{r['today_rank']:4}위` **{r['name']}**  "
+                f"{r['yesterday_lp']}LP → {r['today_lp']}LP  `+{r['diff']}`"
+                for r in lp_risers[:10]
+            ]
+            fields.append({
+                "name": "📊 LP 200점 이상 상승",
+                "value": "\n".join(lines),
+                "inline": False,
+            })
+
         if not fields:
             continue
 
@@ -167,7 +193,7 @@ def build_embeds(results: dict) -> list:
             "title": f"{emoji} {server} 서버 — {today_str}",
             "color": EMBED_COLOR[server],
             "fields": fields,
-            "footer": {"text": f"상승 {len(risers)}명 · 신규 진입 {len(newcomers)}명"},
+            "footer": {"text": f"순위상승 {len(risers)}명 · 신규 진입 {len(newcomers)}명 · LP상승 {len(lp_risers)}명"},
         })
 
     return embeds
@@ -181,7 +207,7 @@ def send_discord(embeds: list, has_data: bool):
             "username": "TFT 리더보드 알리미",
             "embeds": [{
                 "title": f"📊 TFT 리더보드 — {today_str}",
-                "description": "오늘은 20위 이상 상승하거나 신규 진입한 플레이어가 없습니다.",
+                "description": "오늘은 순위 상승, 신규 진입, LP 200점 이상 상승 플레이어가 없습니다.",
                 "color": 0x808080,
             }],
         }
@@ -210,9 +236,9 @@ def main():
         if yesterday_players is None:
             print(f"어제 스냅샷 없음 → 오늘 저장만 (내일부터 비교)")
         else:
-            risers, newcomers = analyze(today_players, yesterday_players)
-            results[server] = (risers, newcomers)
-            print(f"상승 {len(risers)}명 / 신규 진입 {len(newcomers)}명")
+            risers, newcomers, lp_risers = analyze(today_players, yesterday_players)
+            results[server] = (risers, newcomers, lp_risers)
+            print(f"순위상승 {len(risers)}명 / 신규 진입 {len(newcomers)}명 / LP상승 {len(lp_risers)}명")
 
         save_snapshot(TODAY, server, today_players)
         save_csv(server, today_players)
