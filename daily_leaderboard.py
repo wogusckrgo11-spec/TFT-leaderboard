@@ -28,7 +28,7 @@ SERVERS = {
 API_BASE = "https://tft.dakgg.io/api/v1/leaderboards/summoners/{shard}"
 HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://lolchess.gg/"}
 PARAMS_BASE = {"hl": "ko", "tier": "ALL", "queueId": 1100}
-RISE_THRESHOLD = 20
+RISE_THRESHOLD = 50
 EMBED_COLOR = {"KR": 0xE84057, "JP": 0xFF6B6B, "NA": 0x3B82F6, "EUW": 0x6366F1, "VN": 0xF59E0B}
 
 
@@ -141,10 +141,10 @@ def build_embeds(results: dict) -> list:
             lines = [
                 f"`{r['today_rank']:4}위` **{r['name']}**  "
                 f"{r['yesterday_rank']}위 → {r['today_rank']}위  `+{r['diff']}`"
-                for r in risers[:15]
+                for r in risers[:10]
             ]
             fields.append({
-                "name": "📈 순위 20위 이상 상승",
+                "name": "📈 순위 50위 이상 상승",
                 "value": "\n".join(lines),
                 "inline": False,
             })
@@ -152,7 +152,7 @@ def build_embeds(results: dict) -> list:
         if newcomers:
             lines = [
                 f"`{n['today_rank']:4}위` **{n['name']}**  {n['tier']} {n['lp']}LP"
-                for n in newcomers[:15]
+                for n in newcomers[:10]
             ]
             fields.append({
                 "name": "🆕 신규 2000위 진입",
