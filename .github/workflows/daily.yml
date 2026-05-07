@@ -2,7 +2,7 @@ name: TFT 리더보드 일일 수집
 
 on:
   schedule:
-    - cron: '0 9 * * *'  # 매일 18:00 KST (= 09:00 UTC)
+    - cron: '0 3 * * *'  # 매일 12:00 KST (= 03:00 UTC)
   workflow_dispatch:      # 수동 실행 버튼
 
 permissions:
